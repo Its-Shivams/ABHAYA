@@ -26,6 +26,28 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { user, logout } = useAuth();
   const { language, toggleLanguage, t } = useLanguage();
 
+  const [isBackendOnline, setIsBackendOnline] = React.useState<boolean>(true);
+
+  React.useEffect(() => {
+    fetch('http://localhost:5000/api/ping')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.status === 'online') setIsBackendOnline(true);
+      })
+      .catch(() => setIsBackendOnline(false));
+
+    const interval = setInterval(() => {
+      fetch('http://localhost:5000/api/ping')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.status === 'online') setIsBackendOnline(true);
+        })
+        .catch(() => setIsBackendOnline(false));
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const isTrustedContact = user?.role === 'trusted_contact';
   const isAdmin = user?.role === 'admin';
   const isPrimaryUser = user?.role === 'primary_user' || (!isTrustedContact && !isAdmin);
@@ -52,6 +74,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                   isTrustedContact ? 'bg-pink-100 text-pink-700' : 'bg-[#E8A0BF]/30 text-[#673AB7]'
                 }`}>
                   {isTrustedContact ? 'Guardian' : 'Safety v1.0'}
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 hidden sm:flex ${
+                  isBackendOnline ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isBackendOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+                  <span>{isBackendOnline ? 'Backend Online' : 'Connecting...'}</span>
                 </span>
               </div>
               <p className="text-[11px] font-medium text-gray-500 hidden sm:block">
