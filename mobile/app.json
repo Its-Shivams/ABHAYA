@@ -1,0 +1,81 @@
+{
+  "expo": {
+    "name": "ABHAYA",
+    "slug": "abhaya",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#673AB7"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.abhaya.safety",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ABHAYA needs your location to provide safe routes and emergency assistance.",
+        "NSLocationAlwaysUsageDescription": "ABHAYA needs your location to share journey updates with trusted contacts.",
+        "NSCameraUsageDescription": "ABHAYA needs camera access to capture and share evidence.",
+        "NSMicrophoneUsageDescription": "ABHAYA needs microphone access for voice commands.",
+        "NSPhotoLibraryUsageDescription": "ABHAYA needs photo library access to attach images to reports."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#673AB7"
+      },
+      "package": "com.abhaya.safety",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "ABHAYA needs your location for safety features."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ABHAYA needs camera access."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#673AB7",
+          "sounds": ["./assets/notification.wav"]
+        }
+      ]
+    ],
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#673AB7",
+      "androidMode": "default",
+      "androidCollapsedTitle": "ABHAYA Safety Alert"
+    },
+    "extra": {
+      "apiBaseUrl": "http://localhost:5000/api",
+      "socketUrl": "http://localhost:5000",
+      "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+    }
+  }
+}
