@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { Radio, ShieldCheck, BatteryCharging, Clock, MapPin, CheckCircle2, AlertTriangle, Users, Navigation, Crosshair } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import { MapComponent } from '../components/MapComponent';
 import { RouteOption } from '../types';
 import { apiClient } from '../services/api';
@@ -20,6 +21,7 @@ interface JourneyPageProps {
 
 export const JourneyPage: React.FC<JourneyPageProps> = ({ initialRoute, onOpenSOS }) => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const liveLocation = useLiveLocation();
 
   const [isJourneyActive, setIsJourneyActive] = useState<boolean>(true);
@@ -187,7 +189,7 @@ export const JourneyPage: React.FC<JourneyPageProps> = ({ initialRoute, onOpenSO
                 {
                   lat: currentCoord[0],
                   lng: currentCoord[1],
-                  title: 'Your Live Position (Priya)',
+                  title: `Your Live Position (${user?.profile?.display_name || user?.profile?.full_name || 'You'})`,
                   type: 'user',
                   description: liveLocation.isRealGPS ? 'Real Device GPS Stream' : 'Moving along safe corridor at 16 km/h',
                 },

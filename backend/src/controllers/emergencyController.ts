@@ -30,11 +30,10 @@ export async function activateSOS(req: Request, res: Response): Promise<void> {
     for (const c of store.contacts.values()) {
       if ((c.requester_id === authUser.userId || c.contact_id === authUser.userId) && c.can_receive_sos) {
         const contactId = c.requester_id === authUser.userId ? c.contact_id : c.requester_id;
-        notifiedContacts.push(contactId);
+        if (!notifiedContacts.includes(contactId)) {
+          notifiedContacts.push(contactId);
+        }
       }
-    }
-    if (notifiedContacts.length === 0) {
-      notifiedContacts.push('usr-rahul-002');
     }
 
     const sessionId = uuidv4();
@@ -94,6 +93,13 @@ export async function getActiveSession(req: Request, res: Response): Promise<voi
     let foundSession: EmergencySession | null = null;
     const now = Date.now();
 
+    // Collect all user IDs connected to authUser
+    const linkedUserIds = new Set<string>();
+    for (const c of store.contacts.values()) {
+      if (c.requester_id === authUser.userId) linkedUserIds.add(c.contact_id);
+      if (c.contact_id === authUser.userId) linkedUserIds.add(c.requester_id);
+    }
+
     for (const s of store.emergencySessions.values()) {
       if (s.status === 'active') {
         // Auto-expire sessions older than 5 minutes so stale sessions do not persist
@@ -104,7 +110,12 @@ export async function getActiveSession(req: Request, res: Response): Promise<voi
           continue;
         }
 
-        if (s.user_id === authUser.userId || (s.contacts_alerted && s.contacts_alerted.includes(authUser.userId)) || authUser.role === 'admin') {
+        const isSelf = s.user_id === authUser.userId;
+        const isAlerted = s.contacts_alerted && s.contacts_alerted.includes(authUser.userId);
+        const isLinkedContact = linkedUserIds.has(s.user_id);
+        const isAdmin = authUser.role === 'admin';
+
+        if (isSelf || isAlerted || isLinkedContact || isAdmin) {
           foundSession = s;
           break;
         }
@@ -123,8 +134,8 @@ export async function getActiveSession(req: Request, res: Response): Promise<voi
       session: foundSession,
       user: {
         id: foundSession.user_id,
-        name: victimProfile?.full_name || 'Priya Sharma',
-        phone: victimUser?.phone || '+91 9000000001',
+        name: victimProfile?.full_name || victimUser?.email || 'Connected Traveler',
+        phone: victimUser?.phone || '',
         photo: victimProfile?.profile_picture_url,
       },
       emergencyHotlines: [

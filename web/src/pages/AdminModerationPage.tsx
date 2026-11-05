@@ -236,7 +236,7 @@ export const AdminModerationPage: React.FC = () => {
                   <h3 className="font-extrabold text-sm text-[#292936]">{r.address}</h3>
                   <p className="text-xs text-gray-600 leading-relaxed">{r.description}</p>
                   <p className="text-[10px] text-gray-400">
-                    Reported by {r.reporterName || 'Priya S.'} • {new Date(r.created_at).toLocaleString()}
+                    Reported by {r.reporterName || 'Verified Citizen'} • {new Date(r.created_at).toLocaleString()}
                   </p>
                 </div>
 

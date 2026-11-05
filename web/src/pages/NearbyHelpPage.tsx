@@ -6,12 +6,14 @@
 import React, { useState, useEffect } from 'react';
 import { PhoneCall, Shield, Phone, Navigation, MapPin, CheckCircle, Clock } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import { NearbyFacility } from '../types';
 import { fetchFacilities } from '../services/api';
 import { MapComponent } from '../components/MapComponent';
 
 export const NearbyHelpPage: React.FC = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
 
   const [facilities, setFacilities] = useState<NearbyFacility[]>([]);
   const [selectedType, setSelectedType] = useState<string>('all');
@@ -167,7 +169,7 @@ export const NearbyHelpPage: React.FC = () => {
                 {
                   lat: 28.6186,
                   lng: 77.0545,
-                  title: 'Your Location (Priya)',
+                  title: `Your Location (${user?.profile?.display_name || user?.profile?.full_name || 'You'})`,
                   type: 'user',
                 },
                 ...facilities.map((f) => ({

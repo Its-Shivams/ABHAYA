@@ -4,13 +4,16 @@
 // Features Real Device GPS Location & Broadcast
 // ============================================================
 
-import React, { useEffect } from 'react';
-import { Navigation, Radio, AlertTriangle, FileWarning, PhoneCall, Users, ShieldCheck, ChevronRight, MapPin, Sparkles, Activity, Crosshair } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Navigation, Radio, AlertTriangle, FileWarning, PhoneCall, Users, ShieldCheck, ChevronRight, MapPin, Sparkles, Activity, Crosshair, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { MapComponent } from '../components/MapComponent';
 import { useLiveLocation } from '../hooks/useLiveLocation';
 import { broadcastLiveCoordinates } from '../services/liveSync';
+import { apiClient } from '../services/api';
+import { ConnectedContact } from '../types';
+import { ConnectContactModal } from '../components/ConnectContactModal';
 
 interface DashboardPageProps {
   onNavigateTab: (tab: string) => void;
@@ -27,8 +30,24 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const { t } = useLanguage();
   const liveLocation = useLiveLocation();
 
-  const userName = user?.profile?.display_name || user?.profile?.full_name || 'Priya';
+  const [contacts, setContacts] = useState<ConnectedContact[]>([]);
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState<boolean>(false);
+
+  const userName = user?.profile?.display_name || user?.profile?.full_name || user?.email || 'User';
   const abhayaId = user?.abhayaId || 'ABHAYA-USER-1001';
+
+  const loadContacts = async () => {
+    try {
+      const res = await apiClient.get('/contacts');
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setContacts(res.data.data);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadContacts();
+  }, [user]);
 
   // Broadcast current location to Rahul whenever location changes
   useEffect(() => {
@@ -144,9 +163,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               {
                 lat: liveLocation.lat,
                 lng: liveLocation.lng,
-                title: 'Your Location (Priya Sharma)',
+                title: `Your Location (${userName})`,
                 type: 'user',
-                description: liveLocation.isRealGPS ? 'Real GPS Position' : 'Uttam Nagar East • Safe Zone A Corridor',
+                description: liveLocation.isRealGPS ? 'Real GPS Position' : 'Safe Zone A Corridor',
               },
               {
                 lat: 28.6195,
@@ -353,25 +372,47 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
               <span>{t('connectedContacts')}</span>
             </h3>
-            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-              1 Connected
-            </span>
+            <button
+              onClick={() => setIsConnectModalOpen(true)}
+              className="text-xs font-bold text-[#673AB7] hover:bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200 flex items-center gap-1 transition-all"
+            >
+              <UserPlus className="w-3 h-3" />
+              <span>+ Add</span>
+            </button>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img
-                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100"
-                alt="Rahul"
-                className="w-10 h-10 rounded-full object-cover border border-purple-200"
-              />
-              <div>
-                <p className="font-bold text-xs text-[#292936]">Rahul Sharma (Brother)</p>
-                <p className="text-[11px] text-gray-500">rahul@abhaya.demo • Authorized for SOS & Live GPS</p>
-              </div>
+          {contacts.length === 0 ? (
+            <div className="p-4 rounded-2xl bg-gray-50 border border-dashed border-gray-300 text-center space-y-2">
+              <p className="text-xs font-bold text-gray-700">No Trusted Guardians Linked Yet</p>
+              <p className="text-[11px] text-gray-400">
+                Connect family or friends using their ABHAYA ID so they can receive your live SOS alerts.
+              </p>
+              <button
+                onClick={() => setIsConnectModalOpen(true)}
+                className="px-3 py-1.5 rounded-xl bg-[#673AB7] hover:bg-purple-800 text-white font-bold text-xs transition-colors shadow-sm inline-flex items-center gap-1.5"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Connect Guardian</span>
+              </button>
             </div>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm animate-pulse"></span>
-          </div>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {contacts.map((c) => (
+                <div key={c.id} className="p-3 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-purple-200 text-[#673AB7] font-black flex items-center justify-center flex-shrink-0 text-xs">
+                      {(c.name || 'G')[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-bold text-xs text-[#292936]">{c.name} {c.nickname ? `(${c.nickname})` : ''}</p>
+                      <p className="text-[11px] text-gray-500 font-mono">{c.phone || c.email} • {c.abhayaId}</p>
+                    </div>
+                  </div>
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm animate-pulse flex-shrink-0"></span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Recent Community Activity */}
@@ -409,6 +450,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </div>
 
       </div>
+
+      {/* Modal */}
+      <ConnectContactModal
+        isOpen={isConnectModalOpen}
+        onClose={() => setIsConnectModalOpen(false)}
+        onSuccess={loadContacts}
+      />
 
     </div>
   );

@@ -1,22 +1,51 @@
 // ============================================================
 // d:\ABHAYA\web\src\pages\TrustedDashboardPage.tsx
-// Trusted Contact Guardian Portal (For Rahul Sharma)
+// Trusted Contact Guardian Portal
 // Real-time Automated SOS Alert Receiver & Live Tracking
 // ============================================================
 
 import React, { useState, useEffect } from 'react';
-import { HeartHandshake, ShieldCheck, Radio, Phone, MessageSquare, AlertTriangle, BatteryCharging, Clock, MapPin, CheckCircle2 } from 'lucide-react';
+import { HeartHandshake, ShieldCheck, Radio, Phone, MessageSquare, AlertTriangle, BatteryCharging, Clock, MapPin, CheckCircle2, UserPlus, Users } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { MapComponent } from '../components/MapComponent';
 import { subscribeToEmergencyAlerts, subscribeToLiveLocation, resolveEmergencySOS, LiveSOSData, LiveLocationData } from '../services/liveSync';
+import { apiClient } from '../services/api';
+import { ConnectedContact } from '../types';
+import { ConnectContactModal } from '../components/ConnectContactModal';
 
 export const TrustedDashboardPage: React.FC = () => {
+  const { user } = useAuth();
   const { t } = useLanguage();
 
   const [activeSos, setActiveSos] = useState<LiveSOSData | null>(null);
-  const [priyaLocation, setPriyaLocation] = useState<[number, number]>([28.621, 77.061]);
-  const [priyaBattery, setPriyaBattery] = useState<number>(84);
+  const [contacts, setContacts] = useState<ConnectedContact[]>([]);
+  const [selectedContactIndex, setSelectedContactIndex] = useState<number>(0);
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState<boolean>(false);
+  const [isLoadingContacts, setIsLoadingContacts] = useState<boolean>(true);
+
+  const [travelerLocation, setTravelerLocation] = useState<[number, number]>([28.621, 77.061]);
+  const [travelerBattery, setTravelerBattery] = useState<number>(84);
   const [lastUpdateText, setLastUpdateText] = useState<string>('Just now');
+
+  // Load connected contacts from backend
+  const loadContacts = async () => {
+    try {
+      setIsLoadingContacts(true);
+      const res = await apiClient.get('/contacts');
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setContacts(res.data.data);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch contacts for guardian:', err);
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  };
+
+  useEffect(() => {
+    loadContacts();
+  }, [user]);
 
   // Play audible alert sound when SOS is active
   const playSiren = () => {
@@ -40,8 +69,8 @@ export const TrustedDashboardPage: React.FC = () => {
     const unsubscribeSOS = subscribeToEmergencyAlerts((alert) => {
       if (alert && alert.status === 'active') {
         setActiveSos(alert);
-        setPriyaLocation([alert.lat, alert.lng]);
-        setPriyaBattery(alert.batteryLevel);
+        setTravelerLocation([alert.lat, alert.lng]);
+        setTravelerBattery(alert.batteryLevel);
         setLastUpdateText('Live Emergency Dispatch');
         playSiren();
       } else {
@@ -50,8 +79,8 @@ export const TrustedDashboardPage: React.FC = () => {
     });
 
     const unsubscribeLocation = subscribeToLiveLocation((loc: LiveLocationData) => {
-      setPriyaLocation([loc.lat, loc.lng]);
-      setPriyaBattery(loc.batteryLevel);
+      setTravelerLocation([loc.lat, loc.lng]);
+      setTravelerBattery(loc.batteryLevel);
       setLastUpdateText(new Date().toLocaleTimeString());
     });
 
@@ -69,6 +98,13 @@ export const TrustedDashboardPage: React.FC = () => {
     }
     setActiveSos(null);
   };
+
+  const activeWard = contacts[selectedContactIndex] || null;
+  const wardName = activeSos?.userName || activeWard?.name || 'Primary User';
+  const wardFirstName = wardName.split(' ')[0];
+  const wardPhone = activeSos?.userPhone || activeWard?.phone || '+91 112';
+  const wardAbhayaId = activeWard?.abhayaId || 'ABHAYA-USER';
+  const guardianDisplayName = user?.profile?.full_name || user?.profile?.display_name || user?.email || 'Guardian';
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -104,7 +140,7 @@ export const TrustedDashboardPage: React.FC = () => {
               className="px-4 py-2.5 rounded-xl bg-white text-red-700 font-black text-xs shadow-md hover:bg-gray-100 flex items-center gap-1.5 transition-all"
             >
               <Phone className="w-4 h-4 text-red-600" />
-              <span>Call Priya Now</span>
+              <span>Call {wardFirstName} Now</span>
             </a>
 
             <a
@@ -136,16 +172,28 @@ export const TrustedDashboardPage: React.FC = () => {
               Guardian Safety Portal
             </h1>
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-100 text-[#673AB7]">
-              Rahul Sharma (Brother)
+              {guardianDisplayName}
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1 max-w-xl">
-            Authorized to view Priya Sharma's live journey and receive high-priority emergency dispatches.
+            {activeWard ? (
+              <>Authorized to view <strong>{activeWard.name}</strong>'s live journey and receive high-priority emergency dispatches.</>
+            ) : (
+              <>Connect with family members or friends to monitor their travel and receive emergency alerts.</>
+            )}
           </p>
         </div>
 
-        {/* Status Indicator */}
-        <div className="flex items-center gap-2">
+        {/* Status Indicator & Connect Button */}
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setIsConnectModalOpen(true)}
+            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#673AB7] hover:bg-purple-800 text-white transition-all shadow-sm flex items-center gap-1.5"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>+ Link Traveler</span>
+          </button>
+
           {activeSos ? (
             <button
               onClick={handleResolveAlert}
@@ -178,78 +226,115 @@ export const TrustedDashboardPage: React.FC = () => {
                 activeSos ? 'bg-red-100 text-red-800' : 'bg-emerald-50 text-emerald-700'
               }`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${activeSos ? 'bg-red-500 animate-ping' : 'bg-emerald-500 animate-pulse'}`}></span>
-                {activeSos ? 'SOS IN PROGRESS' : 'Location Stream Active'}
+                {activeSos ? 'SOS IN PROGRESS' : 'Stream Active'}
               </span>
             </div>
 
-            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-purple-50/50 border border-purple-100">
-              <img
-                src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120"
-                alt="Priya"
-                className="w-12 h-12 rounded-full object-cover border-2 border-[#673AB7]"
-              />
-              <div>
-                <h3 className="font-extrabold text-sm text-[#292936]">Priya Sharma</h3>
-                <p className="text-xs text-gray-500 font-mono">ABHAYA-USER-1001</p>
-                <p className="text-[11px] text-gray-500 font-medium">+91 9000000001</p>
+            {isLoadingContacts ? (
+              <p className="text-xs text-gray-400 py-4 text-center">Loading linked travelers...</p>
+            ) : contacts.length === 0 ? (
+              <div className="p-4 rounded-2xl bg-gray-50 border border-dashed border-gray-300 text-center space-y-2">
+                <p className="text-xs font-bold text-gray-700">No Travelers Linked Yet</p>
+                <p className="text-[11px] text-gray-400">
+                  Share your Guardian ABHAYA ID: <span className="font-mono font-bold text-[#673AB7]">{user?.abhayaId}</span> with your family member, or link them directly.
+                </p>
+                <button
+                  onClick={() => setIsConnectModalOpen(true)}
+                  className="px-3 py-1.5 rounded-xl bg-[#673AB7] text-white font-bold text-xs transition-colors shadow-sm inline-flex items-center gap-1.5"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Connect Traveler</span>
+                </button>
               </div>
-            </div>
+            ) : (
+              <>
+                {/* Contact Selector if multiple */}
+                {contacts.length > 1 && (
+                  <div className="flex gap-1.5 overflow-x-auto pb-1">
+                    {contacts.map((c, idx) => (
+                      <button
+                        key={c.id}
+                        onClick={() => setSelectedContactIndex(idx)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                          selectedContactIndex === idx
+                            ? 'bg-[#673AB7] text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {c.name.split(' ')[0]}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-            {/* Live Telemetry Info */}
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between py-1.5 border-b border-gray-100">
-                <span className="text-gray-500 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                  <span>Current Coordinates</span>
-                </span>
-                <span className="font-bold text-gray-900 font-mono">
-                  {priyaLocation[0].toFixed(4)}° N, {priyaLocation[1].toFixed(4)}° E
-                </span>
-              </div>
+                <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-purple-50/50 border border-purple-100">
+                  <div className="w-12 h-12 rounded-full bg-[#673AB7] text-white font-black flex items-center justify-center text-lg flex-shrink-0 shadow-sm border-2 border-purple-200">
+                    {(wardName || 'U')[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm text-[#292936]">{wardName}</h3>
+                    <p className="text-xs text-gray-500 font-mono">{wardAbhayaId}</p>
+                    <p className="text-[11px] text-gray-500 font-medium">{wardPhone}</p>
+                  </div>
+                </div>
 
-              <div className="flex justify-between py-1.5 border-b border-gray-100">
-                <span className="text-gray-500 flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-gray-400" />
-                  <span>Last Coordinates Ping</span>
-                </span>
-                <span className="font-bold text-gray-900">{lastUpdateText}</span>
-              </div>
+                {/* Live Telemetry Info */}
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between py-1.5 border-b border-gray-100">
+                    <span className="text-gray-500 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                      <span>Current Coordinates</span>
+                    </span>
+                    <span className="font-bold text-gray-900 font-mono">
+                      {travelerLocation[0].toFixed(4)}° N, {travelerLocation[1].toFixed(4)}° E
+                    </span>
+                  </div>
 
-              <div className="flex justify-between py-1.5 border-b border-gray-100">
-                <span className="text-gray-500 flex items-center gap-1">
-                  <BatteryCharging className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Priya's Battery</span>
-                </span>
-                <span className="font-bold text-emerald-700">{priyaBattery}%</span>
-              </div>
+                  <div className="flex justify-between py-1.5 border-b border-gray-100">
+                    <span className="text-gray-500 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-gray-400" />
+                      <span>Last Coordinates Ping</span>
+                    </span>
+                    <span className="font-bold text-gray-900">{lastUpdateText}</span>
+                  </div>
 
-              <div className="flex justify-between py-1.5">
-                <span className="text-gray-500 flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#673AB7]" />
-                  <span>Corridor Security</span>
-                </span>
-                <span className="font-bold text-emerald-700">Zone A Safe Path</span>
-              </div>
-            </div>
+                  <div className="flex justify-between py-1.5 border-b border-gray-100">
+                    <span className="text-gray-500 flex items-center gap-1">
+                      <BatteryCharging className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>{wardFirstName}'s Battery</span>
+                    </span>
+                    <span className="font-bold text-emerald-700">{travelerBattery}%</span>
+                  </div>
 
-            {/* Direct Communication Buttons */}
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              <a
-                href="tel:+919000000001"
-                className="py-2.5 px-3 rounded-xl bg-purple-100 hover:bg-purple-200 text-[#673AB7] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
-              >
-                <Phone className="w-3.5 h-3.5" />
-                <span>Call Priya</span>
-              </a>
+                  <div className="flex justify-between py-1.5">
+                    <span className="text-gray-500 flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#673AB7]" />
+                      <span>Corridor Security</span>
+                    </span>
+                    <span className="font-bold text-emerald-700">Protected Safe Zone</span>
+                  </div>
+                </div>
 
-              <a
-                href="sms:+919000000001"
-                className="py-2.5 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>SMS Check-in</span>
-              </a>
-            </div>
+                {/* Direct Communication Buttons */}
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <a
+                    href={`tel:${wardPhone.replace(/[^0-9+]/g, '')}`}
+                    className="py-2.5 px-3 rounded-xl bg-purple-100 hover:bg-purple-200 text-[#673AB7] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Call {wardFirstName}</span>
+                  </a>
+
+                  <a
+                    href={`sms:${wardPhone.replace(/[^0-9+]/g, '')}`}
+                    className="py-2.5 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>SMS Check-in</span>
+                  </a>
+                </div>
+              </>
+            )}
 
           </div>
 
@@ -260,7 +345,7 @@ export const TrustedDashboardPage: React.FC = () => {
               <span>Strict Privacy Controls</span>
             </div>
             <p>
-              Under Indian Digital Personal Data Protection standards, Priya's coordinates are only shared during active journeys or emergency events.
+              Under Indian Digital Personal Data Protection standards, coordinates are only streamed during active journeys or emergency events.
             </p>
           </div>
 
@@ -273,7 +358,7 @@ export const TrustedDashboardPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className={`w-2.5 h-2.5 rounded-full ${activeSos ? 'bg-red-500 animate-ping' : 'bg-emerald-500 animate-pulse'}`}></span>
                 <span className="font-bold text-xs text-[#292936]">
-                  {activeSos ? 'EMERGENCY LOCATION (Priya Sharma)' : 'Live GPS Guardian View (Priya Sharma)'}
+                  {activeSos ? `EMERGENCY LOCATION (${wardName})` : `Live GPS Guardian View (${wardName})`}
                 </span>
               </div>
               <span className="text-[11px] text-gray-400">
@@ -282,7 +367,7 @@ export const TrustedDashboardPage: React.FC = () => {
             </div>
 
             <MapComponent
-              center={priyaLocation}
+              center={travelerLocation}
               zoom={14}
               height="450px"
               routes={[
@@ -294,17 +379,17 @@ export const TrustedDashboardPage: React.FC = () => {
                     [28.6289, 77.0789],
                   ],
                   color: activeSos ? '#D93636' : '#2E9D64',
-                  name: 'Priya Journey Path',
+                  name: `${wardName} Journey Path`,
                   zone: activeSos ? 'C' : 'A',
                 },
               ]}
               markers={[
                 {
-                  lat: priyaLocation[0],
-                  lng: priyaLocation[1],
-                  title: activeSos ? '🚨 EMERGENCY: Priya Sharma Location' : 'Priya Sharma (Current Position)',
+                  lat: travelerLocation[0],
+                  lng: travelerLocation[1],
+                  title: activeSos ? `🚨 EMERGENCY: ${wardName} Location` : `${wardName} (Current Position)`,
                   type: activeSos ? 'hazard' : 'user',
-                  description: activeSos ? 'Priya activated Emergency SOS here!' : 'Moving along safe corridor',
+                  description: activeSos ? `${wardName} activated Emergency SOS here!` : 'Moving along safe corridor',
                 },
                 {
                   lat: 28.6195,
@@ -325,6 +410,13 @@ export const TrustedDashboardPage: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Modal */}
+      <ConnectContactModal
+        isOpen={isConnectModalOpen}
+        onClose={() => setIsConnectModalOpen(false)}
+        onSuccess={loadContacts}
+      />
 
     </div>
   );

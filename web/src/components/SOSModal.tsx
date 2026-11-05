@@ -71,6 +71,9 @@ export const SOSModal: React.FC<SOSModalProps> = ({ isOpen, onClose }) => {
       lng: liveLocation.lng,
       address: liveLocation.address || 'Uttam Nagar East, New Delhi (Live Geolocation)',
       batteryLevel: 82,
+      userId: user?.id,
+      userName: user?.profile?.full_name || user?.profile?.display_name || user?.email || 'Primary User',
+      userPhone: user?.phone || '+91 9000000001',
     });
 
     setSessionId(activeSos.sessionId);

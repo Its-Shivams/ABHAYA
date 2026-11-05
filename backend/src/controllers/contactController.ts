@@ -49,20 +49,28 @@ export async function sendRequest(req: Request, res: Response): Promise<void> {
     const { targetAbhayaId, nickname = 'Trusted Contact' } = req.body;
 
     if (!targetAbhayaId) {
-      sendError(res, 'ABHAYA ID is required', 400);
+      sendError(res, 'ABHAYA ID, email or phone is required', 400);
       return;
     }
 
+    const query = String(targetAbhayaId).trim().toLowerCase();
+    const cleanDigits = query.replace(/[^0-9]/g, '');
+
     let targetUser = null;
     for (const u of store.users.values()) {
-      if (u.abhaya_id.toLowerCase() === targetAbhayaId.toLowerCase()) {
+      const uPhoneDigits = u.phone.replace(/[^0-9]/g, '');
+      if (
+        u.abhaya_id.toLowerCase() === query ||
+        u.email.toLowerCase() === query ||
+        (cleanDigits.length >= 10 && uPhoneDigits.endsWith(cleanDigits))
+      ) {
         targetUser = u;
         break;
       }
     }
 
     if (!targetUser) {
-      sendError(res, 'User not found with provided ABHAYA ID', 404);
+      sendError(res, 'User not found with provided ABHAYA ID, email or phone number', 404);
       return;
     }
 
@@ -71,12 +79,23 @@ export async function sendRequest(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    // Check if link already exists
+    for (const c of store.contacts.values()) {
+      if (
+        (c.requester_id === authUser.userId && c.contact_id === targetUser.id) ||
+        (c.requester_id === targetUser.id && c.contact_id === authUser.userId)
+      ) {
+        sendError(res, 'This contact is already connected', 409);
+        return;
+      }
+    }
+
     const newContactId = uuidv4();
     const contact: TrustedContact = {
       id: newContactId,
       requester_id: authUser.userId,
       contact_id: targetUser.id,
-      status: 'accepted', // Auto-accept in demo mode for frictionless experience
+      status: 'accepted', // Auto-accept for immediate protection
       can_track_journey: true,
       can_receive_sos: true,
       can_view_location: true,
@@ -87,7 +106,23 @@ export async function sendRequest(req: Request, res: Response): Promise<void> {
 
     store.contacts.set(newContactId, contact);
 
-    sendSuccess(res, contact, 'Contact connected successfully', 201);
+    const targetProfile = store.profiles.get(targetUser.id);
+    const resultPayload = {
+      id: contact.id,
+      contactUserId: targetUser.id,
+      name: targetProfile?.full_name || targetUser.email,
+      phone: targetUser.phone,
+      email: targetUser.email,
+      abhayaId: targetUser.abhaya_id,
+      role: targetUser.role,
+      nickname: contact.nickname,
+      status: contact.status,
+      canTrackJourney: contact.can_track_journey,
+      canReceiveSos: contact.can_receive_sos,
+      isRequester: true,
+    };
+
+    sendSuccess(res, resultPayload, 'Contact connected successfully', 201);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     sendError(res, `Failed to send request: ${msg}`, 500);

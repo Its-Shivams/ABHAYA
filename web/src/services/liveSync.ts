@@ -59,19 +59,41 @@ export function clearStaleSession(): void {
 }
 clearStaleSession();
 
-// ─── SOS Dispatcher (Only triggers when user explicitly clicks/holds) ─
-export async function triggerEmergencySOS(location: {
+export interface TriggerSOSParams {
   lat: number;
   lng: number;
   address?: string;
   batteryLevel?: number;
-}): Promise<LiveSOSData> {
+  userId?: string;
+  userName?: string;
+  userPhone?: string;
+}
+
+// ─── SOS Dispatcher (Only triggers when user explicitly clicks/holds) ─
+export async function triggerEmergencySOS(location: TriggerSOSParams): Promise<LiveSOSData> {
   const now = new Date();
+
+  let resolvedUserId = location.userId;
+  let resolvedUserName = location.userName;
+  let resolvedUserPhone = location.userPhone;
+
+  if (!resolvedUserName || !resolvedUserId) {
+    try {
+      const storedUser = localStorage.getItem('abhaya_user');
+      if (storedUser) {
+        const u = JSON.parse(storedUser);
+        resolvedUserId = resolvedUserId || u.id;
+        resolvedUserName = resolvedUserName || u.profile?.full_name || u.profile?.display_name || u.email;
+        resolvedUserPhone = resolvedUserPhone || u.phone;
+      }
+    } catch {}
+  }
+
   const sosData: LiveSOSData = {
     sessionId: `sos-${Date.now()}`,
-    userId: 'usr-priya-001',
-    userName: 'Priya Sharma',
-    userPhone: '+91 9000000001',
+    userId: resolvedUserId || 'usr-guest',
+    userName: resolvedUserName || 'Primary User',
+    userPhone: resolvedUserPhone || '+91 112',
     lat: location.lat,
     lng: location.lng,
     address: location.address || `${location.lat.toFixed(4)}° N, ${location.lng.toFixed(4)}° E`,

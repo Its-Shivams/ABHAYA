@@ -14,8 +14,8 @@ export const AuthPage: React.FC = () => {
   const { t, language, toggleLanguage } = useLanguage();
 
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
-  const [emailOrPhone, setEmailOrPhone] = useState<string>('priya@abhaya.demo');
-  const [password, setPassword] = useState<string>('Priya@123');
+  const [emailOrPhone, setEmailOrPhone] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
 
   // Registration state
   const [selectedRole, setSelectedRole] = useState<UserRole>('primary_user');

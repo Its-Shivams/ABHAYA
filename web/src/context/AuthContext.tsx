@@ -192,6 +192,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null);
     localStorage.removeItem('abhaya_token');
     localStorage.removeItem('abhaya_user');
+    localStorage.removeItem('abhaya_active_sos');
+    localStorage.removeItem('abhaya_sos_timestamp');
+    localStorage.removeItem('abhaya_live_loc');
   };
 
   return (

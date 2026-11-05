@@ -299,7 +299,7 @@ export const CommunityPage: React.FC = () => {
                 )}
 
                 <div className="text-[10px] text-gray-400 pt-2 border-t border-gray-100 flex justify-between">
-                  <span>Reported by: {r.reporterName || 'Priya S.'}</span>
+                  <span>Reported by: {r.reporterName || 'Verified Citizen'}</span>
                   <span>{new Date(r.created_at).toLocaleDateString()}</span>
                 </div>
               </div>

@@ -26,6 +26,21 @@ export interface User {
   profile: UserProfile | null;
 }
 
+export interface ConnectedContact {
+  id: string;
+  contactUserId: string;
+  name: string;
+  phone: string;
+  email: string;
+  abhayaId: string;
+  role: string;
+  nickname: string;
+  status: string;
+  canTrackJourney: boolean;
+  canReceiveSos: boolean;
+  isRequester: boolean;
+}
+
 export interface SafetyParameters {
   incidentScore: number;
   streetlightScore: number;
