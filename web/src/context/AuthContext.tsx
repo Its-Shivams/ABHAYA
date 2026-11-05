@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           display_name: 'Priya',
           bio: 'Software engineer living in Uttam Nagar, New Delhi.',
           preferred_language: 'en',
-          profile_picture_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300',
+          profile_picture_url: null,
           emergency_message: 'Please help! I have activated emergency SOS via ABHAYA.',
         },
       };
@@ -115,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           display_name: 'Rahul',
           bio: 'Brother and trusted contact for Priya Sharma.',
           preferred_language: 'en',
-          profile_picture_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
+          profile_picture_url: null,
           emergency_message: '',
         },
       };

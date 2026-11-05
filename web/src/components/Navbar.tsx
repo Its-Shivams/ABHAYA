@@ -4,7 +4,7 @@
 // ============================================================
 
 import React from 'react';
-import { Shield, Navigation, Users, AlertTriangle, PhoneCall, Radio, Globe, Mic, LogOut, ShieldAlert, HeartHandshake, Home } from 'lucide-react';
+import { Shield, Navigation, Users, AlertTriangle, PhoneCall, Radio, Globe, Mic, LogOut, ShieldAlert, HeartHandshake, Home, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -242,11 +242,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => setActiveTab('profile')}
                   className="flex items-center gap-2 text-left p-1 rounded-xl hover:bg-gray-100 transition-colors"
                 >
-                  <img
-                    src={user.profile?.profile_picture_url || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100'}
-                    alt="avatar"
-                    className="w-8 h-8 rounded-full object-cover border border-purple-200"
-                  />
+                  {user.profile?.profile_picture_url ? (
+                    <img
+                      src={user.profile.profile_picture_url}
+                      alt="avatar"
+                      className="w-8 h-8 rounded-full object-cover border border-purple-200"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#673AB7] to-purple-600 text-white flex items-center justify-center font-black text-xs shadow-sm border border-purple-300">
+                      {(user.profile?.full_name || user.email || 'U')[0].toUpperCase()}
+                    </div>
+                  )}
                   <div className="hidden xl:block">
                     <p className="text-xs font-bold text-[#292936] leading-tight">
                       {user.profile?.full_name || 'User'}

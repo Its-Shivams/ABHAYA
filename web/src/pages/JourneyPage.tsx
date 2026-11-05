@@ -245,14 +245,12 @@ export const JourneyPage: React.FC<JourneyPageProps> = ({ initialRoute, onOpenSO
                 Active Guardian Stream
               </span>
               <div className="flex items-center gap-3">
-                <img
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100"
-                  alt="Rahul"
-                  className="w-10 h-10 rounded-full object-cover border border-purple-300"
-                />
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#673AB7] to-pink-500 text-white font-bold flex items-center justify-center text-xs flex-shrink-0 shadow-sm border border-purple-200">
+                  <ShieldCheck className="w-5 h-5 text-white" />
+                </div>
                 <div>
-                  <p className="font-bold text-xs text-[#292936]">Rahul Sharma</p>
-                  <p className="text-[10px] text-gray-500">Live GPS stream broadcasting</p>
+                  <p className="font-bold text-xs text-[#292936]">Connected Guardians</p>
+                  <p className="text-[10px] text-gray-500">Live GPS stream broadcasting to your trusted network</p>
                 </div>
                 <span className="ml-auto w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
               </div>

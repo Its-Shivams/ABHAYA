@@ -90,7 +90,7 @@ class Store {
       display_name: 'Priya',
       date_of_birth: new Date('1998-05-15'),
       gender: 'Female',
-      profile_picture_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300',
+      profile_picture_url: null,
       bio: 'Software engineer living in Uttam Nagar, New Delhi.',
       preferred_language: 'en',
       home_location: { lat: 28.6186, lng: 77.0545 }, // Uttam Nagar
@@ -126,7 +126,7 @@ class Store {
       display_name: 'Rahul',
       date_of_birth: new Date('1995-09-20'),
       gender: 'Male',
-      profile_picture_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
+      profile_picture_url: null,
       bio: 'Brother and trusted contact for Priya Sharma.',
       preferred_language: 'en',
       home_location: { lat: 28.6186, lng: 77.0545 },
