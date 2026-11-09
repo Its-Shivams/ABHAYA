@@ -1,0 +1,22 @@
+{
+  "short_name": "ABHAYA",
+  "name": "ABHAYA — Women's Safety & Navigation",
+  "description": "Your Safety, Your Journey, Your Control",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#673AB7",
+  "theme_color": "#673AB7",
+  "display": "standalone",
+  "orientation": "portrait"
+}
