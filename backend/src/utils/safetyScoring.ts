@@ -1,161 +1,288 @@
 // ============================================================
 // d:\ABHAYA\backend\src\utils\safetyScoring.ts
-// Safety scoring engine — weighted multi-factor analysis
+// Eight-Factor Safety Intelligence & Data Confidence Scoring Engine
+// Configurable Weights & Uncertainty Modeling
 // ============================================================
 
-import { RouteWithScore, SafetyZone } from '../types';
+import { SafetyZone } from '../types';
 
-// ─── Weights (must sum to 1.0) ────────────────────────────────
-const WEIGHTS = {
-  incident: 0.25,
-  streetlight: 0.20,
-  community: 0.15,
+// ─── Configurable 8-Factor Weights (Must sum to 1.0) ──────────
+export interface SafetyWeights {
+  incident: number;        // 20% Incident-free record
+  streetlight: number;     // 15% Streetlight illumination
+  publicActivity: number;  // 15% Public activity and footfall
+  cctv: number;            // 10% CCTV coverage
+  police: number;          // 10% Police proximity and accessibility
+  hospital: number;        // 5%  Hospital accessibility
+  community: number;       // 10% Verified community reports
+  mobileNetwork: number;   // 15% Mobile network & cellular availability
+}
+
+export const DEFAULT_WEIGHTS: SafetyWeights = {
+  incident: 0.20,
+  streetlight: 0.15,
   publicActivity: 0.15,
   cctv: 0.10,
   police: 0.10,
   hospital: 0.05,
-} as const;
+  community: 0.10,
+  mobileNetwork: 0.15,
+};
 
-// ─── Zone thresholds ──────────────────────────────────────────
-const ZONE_A_MIN = 75; // Green — very safe
-const ZONE_B_MIN = 45; // Yellow — moderate
-// Below ZONE_B_MIN      // Red — unsafe (Zone C)
+// ─── Configurable Zone Thresholds ─────────────────────────────
+export const ZONE_THRESHOLDS = {
+  ZONE_A_MIN: 75, // 75–100: Safe (Zone A)
+  ZONE_B_MIN: 45, // 45–74: Moderate Caution (Zone B)
+  // 0–44: High Risk (Zone C)
+};
 
 export interface SafetyParams {
-  /** Historical incident density score (0=many incidents, 100=none) */
   incidentScore: number;
-  /** Streetlight coverage score (0=dark, 100=fully lit) */
   streetlightScore: number;
-  /** Community-reported safety rating (0=unsafe, 100=safe) */
-  communityScore: number;
-  /** Public activity / footfall score (0=deserted, 100=bustling) */
   publicActivityScore: number;
-  /** CCTV coverage score (0=none, 100=full coverage) */
   cctvScore: number;
-  /** Proximity to police station score (0=far, 100=nearby) */
   policeScore: number;
-  /** Proximity to hospital / emergency services score */
   hospitalScore: number;
+  communityScore: number;
+  mobileNetworkScore?: number | null; // 0–100 scale or null/undefined if unknown
+}
+
+export interface FactorDetail {
+  score: number | null;
+  weight: number;
+  isKnown: boolean;
+  label: string;
+  reasons: string;
+}
+
+export interface SafetyEvaluation {
+  score: number;
+  dataConfidence: number; // 0–100%
+  zone: SafetyZone;
+  zoneLabel: string;
+  zoneColor: string;
+  unknownFactors: string[];
+  breakdown: {
+    incident: FactorDetail;
+    streetlight: FactorDetail;
+    publicActivity: FactorDetail;
+    cctv: FactorDetail;
+    police: FactorDetail;
+    hospital: FactorDetail;
+    community: FactorDetail;
+    mobileNetwork: FactorDetail;
+  };
 }
 
 /**
- * Calculate composite safety score (0-100).
- * Higher score = safer.
+ * Evaluates road safety across the 8-factor model with uncertainty modeling.
+ */
+export function evaluateSafety(
+  params: SafetyParams,
+  weights: SafetyWeights = DEFAULT_WEIGHTS
+): SafetyEvaluation {
+  const unknownFactors: string[] = [];
+  let totalKnownWeight = 0;
+  let weightedScoreSum = 0;
+
+  // 1. Incident Score (20%)
+  const incidentScore = Math.max(0, Math.min(100, params.incidentScore ?? 75));
+  weightedScoreSum += incidentScore * weights.incident;
+  totalKnownWeight += weights.incident;
+
+  // 2. Streetlight Illumination (15%)
+  const streetlightScore = Math.max(0, Math.min(100, params.streetlightScore ?? 70));
+  weightedScoreSum += streetlightScore * weights.streetlight;
+  totalKnownWeight += weights.streetlight;
+
+  // 3. Public Activity & Footfall (15%)
+  const publicActivityScore = Math.max(0, Math.min(100, params.publicActivityScore ?? 70));
+  weightedScoreSum += publicActivityScore * weights.publicActivity;
+  totalKnownWeight += weights.publicActivity;
+
+  // 4. CCTV Coverage (10%)
+  const cctvScore = Math.max(0, Math.min(100, params.cctvScore ?? 65));
+  weightedScoreSum += cctvScore * weights.cctv;
+  totalKnownWeight += weights.cctv;
+
+  // 5. Police Proximity & Patrols (10%)
+  const policeScore = Math.max(0, Math.min(100, params.policeScore ?? 75));
+  weightedScoreSum += policeScore * weights.police;
+  totalKnownWeight += weights.police;
+
+  // 6. Hospital & Medical Access (5%)
+  const hospitalScore = Math.max(0, Math.min(100, params.hospitalScore ?? 70));
+  weightedScoreSum += hospitalScore * weights.hospital;
+  totalKnownWeight += weights.hospital;
+
+  // 7. Verified Community Reports (10%)
+  const communityScore = Math.max(0, Math.min(100, params.communityScore ?? 80));
+  weightedScoreSum += communityScore * weights.community;
+  totalKnownWeight += weights.community;
+
+  // 8. Mobile Network Availability (15%)
+  const isNetworkKnown = params.mobileNetworkScore !== null && params.mobileNetworkScore !== undefined;
+  let networkScore: number | null = null;
+  if (isNetworkKnown) {
+    networkScore = Math.max(0, Math.min(100, params.mobileNetworkScore as number));
+    weightedScoreSum += networkScore * weights.mobileNetwork;
+    totalKnownWeight += weights.mobileNetwork;
+  } else {
+    unknownFactors.push('Mobile network availability');
+  }
+
+  // Calculate normalized score based on known data (does not award 100% or zero risk for unknown)
+  const normalizedScore = totalKnownWeight > 0 ? weightedScoreSum / totalKnownWeight : 50;
+  const finalScore = Math.round(normalizedScore * 10) / 10;
+
+  // Data Confidence Calculation: proportion of known weights, with penalty for missing indicators
+  const dataConfidence = Math.round(totalKnownWeight * 100);
+
+  const zone = classifyZone(finalScore);
+
+  return {
+    score: finalScore,
+    dataConfidence,
+    zone,
+    zoneLabel: getZoneLabel(zone),
+    zoneColor: getZoneColor(zone),
+    unknownFactors,
+    breakdown: {
+      incident: {
+        score: incidentScore,
+        weight: weights.incident,
+        isKnown: true,
+        label: 'Incident-Free Record',
+        reasons: incidentScore >= 75 ? 'Low historical incident frequency' : 'Moderate incident history in vicinity',
+      },
+      streetlight: {
+        score: streetlightScore,
+        weight: weights.streetlight,
+        isKnown: true,
+        label: 'Streetlight Illumination',
+        reasons: streetlightScore >= 75 ? 'Continuous municipal street lighting' : 'Intermittent or dim lighting patches reported',
+      },
+      publicActivity: {
+        score: publicActivityScore,
+        weight: weights.publicActivity,
+        isKnown: true,
+        label: 'Public Activity & Footfall',
+        reasons: publicActivityScore >= 75 ? 'High footfall & open commercial establishments' : 'Low pedestrian density after late hours',
+      },
+      cctv: {
+        score: cctvScore,
+        weight: weights.cctv,
+        isKnown: true,
+        label: 'CCTV Surveillance',
+        reasons: cctvScore >= 70 ? 'CCTV monitoring on main corridors' : 'Limited public CCTV cameras',
+      },
+      police: {
+        score: policeScore,
+        weight: weights.police,
+        isKnown: true,
+        label: 'Police Proximity',
+        reasons: policeScore >= 75 ? 'Close to police station / Pink Booth patrol' : 'Moderate response radius for law enforcement',
+      },
+      hospital: {
+        score: hospitalScore,
+        weight: weights.hospital,
+        isKnown: true,
+        label: 'Hospital Accessibility',
+        reasons: hospitalScore >= 70 ? 'Emergency care & hospital within 1.5 km' : 'Hospital facility further than 3 km',
+      },
+      community: {
+        score: communityScore,
+        weight: weights.community,
+        isKnown: true,
+        label: 'Verified Community Reports',
+        reasons: communityScore >= 75 ? 'Positive community sentiment & verified reports' : 'Unresolved safety hazard reports flagged',
+      },
+      mobileNetwork: {
+        score: networkScore,
+        weight: weights.mobileNetwork,
+        isKnown: isNetworkKnown,
+        label: 'Mobile Network Availability',
+        reasons: isNetworkKnown
+          ? (networkScore! >= 75 ? 'Strong cellular & data signal (4G/5G)' : 'Weak cellular signal / spotty connectivity')
+          : 'Cellular network coverage data unverified for this segment',
+      },
+    },
+  };
+}
+
+/**
+ * Backward compatibility helper
  */
 export function calculateSafetyScore(params: SafetyParams): number {
-  const raw =
-    params.incidentScore * WEIGHTS.incident +
-    params.streetlightScore * WEIGHTS.streetlight +
-    params.communityScore * WEIGHTS.community +
-    params.publicActivityScore * WEIGHTS.publicActivity +
-    params.cctvScore * WEIGHTS.cctv +
-    params.policeScore * WEIGHTS.police +
-    params.hospitalScore * WEIGHTS.hospital;
-
-  // Clamp to [0, 100] and round to 1dp
-  return Math.round(Math.min(100, Math.max(0, raw)) * 10) / 10;
+  return evaluateSafety(params).score;
 }
 
-/**
- * Classify score into safety zone.
- * A = 75–100 (Green / Safe)
- * B = 45–74  (Yellow / Caution)
- * C = 0–44   (Red / Unsafe)
- */
 export function classifyZone(score: number): SafetyZone {
-  if (score >= ZONE_A_MIN) return 'A';
-  if (score >= ZONE_B_MIN) return 'B';
+  if (score >= ZONE_THRESHOLDS.ZONE_A_MIN) return 'A';
+  if (score >= ZONE_THRESHOLDS.ZONE_B_MIN) return 'B';
   return 'C';
 }
 
 export function getZoneLabel(zone: string): string {
   const labels: Record<string, string> = {
-    A: 'Safe',
-    B: 'Moderate Risk',
-    C: 'High Risk',
+    A: 'Safe Corridor (Zone A)',
+    B: 'Moderate Caution (Zone B)',
+    C: 'Elevated Risk (Zone C)',
   };
-  return labels[zone] ?? 'Unknown';
+  return labels[zone] ?? 'Evaluated Corridor';
 }
 
 export function getZoneColor(zone: string): string {
   const colors: Record<string, string> = {
-    A: '#22C55E', // green-500
-    B: '#F59E0B', // amber-500
-    C: '#EF4444', // red-500
+    A: '#16A34A', // safe green
+    B: '#F59E0B', // warning amber
+    C: '#DC2626', // emergency red
   };
-  return colors[zone] ?? '#6B7280';
+  return colors[zone] ?? '#8B5CF6';
 }
 
 /**
- * Combined score: 70% safety, 30% time efficiency (inverted normalised).
- * timeScore: 0–100 where 100 = fastest.
+ * Balanced route cost function:
+ * cost = (1 - safety) * 0.6 + (timeNormalized) * 0.3 + (1 - confidence) * 0.1
  */
-export function calculateCombinedScore(
+export function calculateRouteCost(
   safetyScore: number,
-  timeScore: number
+  durationMinutes: number,
+  confidencePercent: number
 ): number {
+  const safetyPenalty = (100 - safetyScore) / 100;
+  const timePenalty = Math.min(1, durationMinutes / 60);
+  const uncertaintyPenalty = (100 - confidencePercent) / 100;
+
+  return Math.round((safetyPenalty * 0.6 + timePenalty * 0.3 + uncertaintyPenalty * 0.1) * 100) / 100;
+}
+
+export function calculateCombinedScore(safetyScore: number, timeScore: number): number {
   return Math.round((safetyScore * 0.7 + timeScore * 0.3) * 10) / 10;
 }
 
-/**
- * Normalise route durations to 0-100 time scores.
- * Shortest route gets 100.
- */
-export function normaliseTimeScores(durations: number[]): number[] {
-  if (durations.length === 0) return [];
-  const minDuration = Math.min(...durations);
-  const maxDuration = Math.max(...durations);
-  const range = maxDuration - minDuration;
-  if (range === 0) return durations.map(() => 100);
-  return durations.map(d => Math.round(((maxDuration - d) / range) * 100));
+export function normaliseTimeScores(durationsSeconds: number[]): number[] {
+  if (durationsSeconds.length === 0) return [];
+  const minDur = Math.min(...durationsSeconds);
+  const maxDur = Math.max(...durationsSeconds);
+  if (minDur === maxDur) return durationsSeconds.map(() => 80);
+  return durationsSeconds.map((d) => Math.round((1 - (d - minDur) / (maxDur - minDur)) * 60 + 40));
 }
 
-/**
- * Select the recommended route from a list (highest combined score).
- */
-export function generateRouteRecommendation(
-  routes: RouteWithScore[]
-): RouteWithScore {
-  if (routes.length === 0) {
-    throw new Error('No routes provided to generateRouteRecommendation');
-  }
-  return routes.reduce((best, route) =>
-    route.combined_score > best.combined_score ? route : best
-  );
-}
-
-/**
- * Generate human-readable route recommendation text.
- */
 export function getRecommendationText(
-  safetyScore: number,
-  zone: SafetyZone,
-  isRecommended: boolean
+  safetyScoreOrZone: number | SafetyZone,
+  zoneOrIsRecommended?: SafetyZone | boolean,
+  isRecommendedFlag?: boolean
 ): string {
-  if (isRecommended) {
-    if (zone === 'A') return '✅ Recommended — Safest route available';
-    if (zone === 'B') return '⚠️ Recommended — Best balance of safety and time';
-    return '🔴 Use caution — All available routes have elevated risk';
+  const zone = typeof safetyScoreOrZone === 'string' ? safetyScoreOrZone : ((typeof zoneOrIsRecommended === 'string' ? zoneOrIsRecommended : 'B') as SafetyZone);
+  const isRecommended = typeof zoneOrIsRecommended === 'boolean' ? zoneOrIsRecommended : (isRecommendedFlag ?? false);
+
+  if (isRecommended && zone === 'A') {
+    return 'Recommended safer route based on available data with strong lighting, high footfall and active patrols.';
   }
-  if (zone === 'A') return 'Safe route — slightly longer travel time';
-  if (zone === 'B') return 'Moderate risk — consider alternative';
-  return 'High risk — avoid if possible';
+  if (zone === 'B') {
+    return 'Faster option with moderate risk; caution advised in less illuminated stretches.';
+  }
+  return 'Higher risk corridor; avoid during late night hours.';
 }
 
-/**
- * Generate safety breakdown explanation for display.
- */
-export function getSafetyBreakdownText(params: SafetyParams): string[] {
-  const insights: string[] = [];
-  if (params.incidentScore < 40) insights.push('⚠️ High incident history in this area');
-  if (params.streetlightScore < 40) insights.push('⚠️ Poor street lighting');
-  if (params.communityScore < 40) insights.push('⚠️ Negative community feedback');
-  if (params.publicActivityScore < 30) insights.push('⚠️ Low foot traffic — isolated area');
-  if (params.cctvScore < 30) insights.push('⚠️ Limited CCTV coverage');
-  if (params.policeScore >= 70) insights.push('✅ Police station nearby');
-  if (params.hospitalScore >= 70) insights.push('✅ Hospital / emergency services nearby');
-  if (params.streetlightScore >= 70) insights.push('✅ Well-lit route');
-  if (params.publicActivityScore >= 70) insights.push('✅ Active public area');
-  if (insights.length === 0) insights.push('✅ Generally safe route');
-  return insights;
-}

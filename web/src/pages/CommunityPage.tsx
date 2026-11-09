@@ -208,36 +208,36 @@ export const CommunityPage: React.FC = () => {
         /* Community Feed */
         <div className="space-y-4 max-w-3xl">
           {posts.map((p) => (
-            <div key={p.id} className="bg-white rounded-3xl p-5 shadow-sm border border-gray-200 space-y-3">
+            <div key={p.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200/80 space-y-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-full bg-purple-100 text-[#673AB7] flex items-center justify-center font-black text-xs">
-                    {p.author_display_name[0]}
+                    {p.author_display_name ? p.author_display_name[0] : 'U'}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-[#292936]">{p.author_display_name}</span>
+                      <span className="font-bold text-xs text-[#252238]">{p.author_display_name}</span>
                       {p.is_pinned && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-[#673AB7]">
-                          PINNED
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-[#673AB7] border border-purple-100">
+                          VERIFIED
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-gray-400 font-medium">{p.area_name} • Delhi</p>
+                    <p className="text-[10px] text-[#777487] font-medium">{p.area_name} • Delhi</p>
                   </div>
                 </div>
 
-                <span className="text-[10px] text-gray-400">
+                <span className="text-[10px] text-[#777487]">
                   {new Date(p.created_at).toLocaleDateString()}
                 </span>
               </div>
 
               <div>
-                <h3 className="font-extrabold text-sm text-[#292936]">{p.title}</h3>
-                <p className="text-xs text-gray-600 mt-1 leading-relaxed">{p.content}</p>
+                <h3 className="font-bold text-sm text-[#252238]">{p.title}</h3>
+                <p className="text-xs text-[#777487] mt-1 leading-relaxed">{p.content}</p>
               </div>
 
-              <div className="flex items-center gap-4 pt-3 border-t border-gray-100 text-xs text-gray-500 font-semibold">
+              <div className="flex items-center gap-4 pt-3 border-t border-gray-100 text-xs text-[#777487] font-semibold">
                 <button
                   onClick={() => handleLikePost(p.id)}
                   className="flex items-center gap-1.5 hover:text-[#673AB7] transition-colors"

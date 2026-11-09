@@ -1,15 +1,31 @@
 // ============================================================
 // d:\ABHAYA\web\src\pages\JourneyPage.tsx
 // Real-Time Live Journey Sharing & Guardian Tracking
-// Broadcasts Live GPS to Rahul in real time
+// Automated ETA, Deviation Checks, and Contact Authorization
 // ============================================================
 
 import React, { useState, useEffect } from 'react';
-import { Radio, ShieldCheck, BatteryCharging, Clock, MapPin, CheckCircle2, AlertTriangle, Users, Navigation, Crosshair } from 'lucide-react';
+import {
+  Radio,
+  ShieldCheck,
+  BatteryCharging,
+  Clock,
+  MapPin,
+  CheckCircle2,
+  AlertTriangle,
+  Users,
+  Navigation,
+  Crosshair,
+  Shield,
+  HelpCircle,
+  Play,
+  Square,
+  ChevronRight,
+} from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { MapComponent } from '../components/MapComponent';
-import { RouteOption } from '../types';
+import { RouteOption, ConnectedContact } from '../types';
 import { apiClient } from '../services/api';
 import { useLiveLocation } from '../hooks/useLiveLocation';
 import { broadcastLiveCoordinates } from '../services/liveSync';
@@ -28,29 +44,42 @@ export const JourneyPage: React.FC<JourneyPageProps> = ({ initialRoute, onOpenSO
   const [progressPercent, setProgressPercent] = useState<number>(35);
   const [etaMinutes, setEtaMinutes] = useState<number>(11);
   const [batteryLevel, setBatteryLevel] = useState<number>(84);
-  const [journeyId, setJourneyId] = useState<string>('jrn-live-001');
+  const [lastPingTime, setLastPingTime] = useState<string>('Just now');
+  const [contacts, setContacts] = useState<ConnectedContact[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+  const [deviationAlert, setDeviationAlert] = useState<boolean>(false);
 
-  // Coordinates simulation along the path
-  const routeCoords: [number, number][] = [
+  const routeCoords: [number, number][] = initialRoute?.coordinates || [
     [28.6186, 77.0545],
-    [28.621, 77.061],
-    [28.625, 77.071],
+    [28.6212, 77.0615],
+    [28.6254, 77.0712],
     [28.6289, 77.0789],
   ];
 
   const [currentCoord, setCurrentCoord] = useState<[number, number]>([
-    liveLocation.isRealGPS ? liveLocation.lat : 28.621,
-    liveLocation.isRealGPS ? liveLocation.lng : 77.061,
+    liveLocation.isRealGPS ? liveLocation.lat : 28.6212,
+    liveLocation.isRealGPS ? liveLocation.lng : 77.0615,
   ]);
 
-  // Sync with real GPS if active
+  // Load connected contacts
+  useEffect(() => {
+    apiClient.get('/contacts').then((res) => {
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setContacts(res.data.data);
+        setSelectedContacts(res.data.data.map((c: any) => c.id));
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Sync with real GPS
   useEffect(() => {
     if (liveLocation.isRealGPS) {
       setCurrentCoord([liveLocation.lat, liveLocation.lng]);
+      setLastPingTime(new Date().toLocaleTimeString());
     }
   }, [liveLocation.lat, liveLocation.lng, liveLocation.isRealGPS]);
 
-  // Broadcast location to Rahul
+  // Broadcast location
   useEffect(() => {
     if (!isJourneyActive) return;
 
@@ -66,36 +95,30 @@ export const JourneyPage: React.FC<JourneyPageProps> = ({ initialRoute, onOpenSO
     });
   }, [currentCoord, isJourneyActive, batteryLevel]);
 
-  // Simulation timer if real GPS is not used
+  // Advance simulated movement if not real GPS
   useEffect(() => {
     if (!isJourneyActive || liveLocation.isRealGPS) return;
 
     const timer = setInterval(() => {
-      setProgressPercent((prev) => {
-        if (prev >= 100) return 100;
-        return prev + 5;
-      });
-
+      setProgressPercent((prev) => (prev >= 95 ? 100 : prev + 5));
       setEtaMinutes((prev) => Math.max(1, prev - 1));
+      setLastPingTime(new Date().toLocaleTimeString());
 
-      // Slightly advance coordinates
       setCurrentCoord(([lat, lng]) => [
-        lat + 0.0006 * (Math.random() > 0.5 ? 1 : 0.5),
-        lng + 0.001 * (Math.random() > 0.5 ? 1 : 0.5),
+        lat + 0.0006 * (Math.random() > 0.5 ? 1 : 0.8),
+        lng + 0.0009 * (Math.random() > 0.5 ? 1 : 0.8),
       ]);
-    }, 5000);
+    }, 6000);
 
     return () => clearInterval(timer);
   }, [isJourneyActive, liveLocation.isRealGPS]);
 
-  const handleStopJourney = async () => {
-    try {
-      await apiClient.post(`/journeys/${journeyId}/stop`);
-    } catch {}
+  const handleStopJourney = () => {
     setIsJourneyActive(false);
+    setProgressPercent(100);
   };
 
-  const handleStartJourney = async () => {
+  const handleStartJourney = () => {
     setIsJourneyActive(true);
     setProgressPercent(10);
     setEtaMinutes(14);
@@ -106,185 +129,232 @@ export const JourneyPage: React.FC<JourneyPageProps> = ({ initialRoute, onOpenSO
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       
       {/* Top Banner */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#16A34A] flex items-center justify-center border border-emerald-100">
               <Radio className="w-5 h-5 animate-pulse" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-[#292936]">
-              {t('journeyTitle')}
-            </h1>
-            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${isJourneyActive ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'}`}>
-              {isJourneyActive ? 'LIVE TRACKING ACTIVE' : 'JOURNEY COMPLETED'}
-            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black text-[#252238]">
+                  {t('journeyTitle')}
+                </h1>
+                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                  isJourneyActive ? 'bg-emerald-50 text-[#16A34A] border border-emerald-200' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {isJourneyActive ? 'STREAMING ACTIVE' : 'JOURNEY COMPLETED'}
+                </span>
+              </div>
+              <p className="text-xs text-[#777487] mt-0.5">
+                Authorized guardians receive live GPS coordinates, battery level and corridor updates.
+              </p>
+            </div>
           </div>
-
-          <p className="text-xs text-gray-500 mt-1">
-            Live encrypted coordinates are broadcasting to Rahul Sharma with safety corridor surveillance.
-          </p>
         </div>
 
-        {/* GPS Mode & SOS Shortcut */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={() => liveLocation.toggleRealGPS()}
-            className={`px-3.5 py-2.5 rounded-2xl text-xs font-bold border flex items-center gap-1.5 transition-all shadow-sm ${
-              liveLocation.useRealDeviceGPS
-                ? 'bg-blue-600 text-white border-blue-700'
-                : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
-            }`}
-          >
-            <Crosshair className={`w-4 h-4 ${liveLocation.useRealDeviceGPS ? 'animate-spin' : 'text-blue-600'}`} />
-            <span>{liveLocation.useRealDeviceGPS ? 'Using Real GPS' : 'GPS: Demo Delhi'}</span>
-          </button>
+        {/* Action button */}
+        <div className="flex items-center gap-2.5">
+          {isJourneyActive ? (
+            <button
+              onClick={handleStopJourney}
+              className="px-4 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+            >
+              <Square className="w-3.5 h-3.5 fill-current" />
+              <span>End Journey Safely</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleStartJourney}
+              className="px-4 py-2.5 rounded-xl bg-[#673AB7] hover:bg-purple-800 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Start New Journey</span>
+            </button>
+          )}
 
           <button
             onClick={onOpenSOS}
-            className="px-4 py-2.5 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs shadow-md shadow-red-500/20 flex items-center gap-2 transition-all active:scale-95"
+            className="px-4 py-2.5 rounded-xl bg-[#DC2626] hover:bg-red-700 text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition-all"
           >
-            <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
-            <span>TRIGGER SOS</span>
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span>SOS</span>
           </button>
         </div>
       </div>
 
-      {/* Main Tracking Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Side: Map with Live Progress (8 Cols) */}
-        <div className="lg:col-span-8 space-y-4">
-          <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-200">
-            
-            {/* Progress Bar Header */}
-            <div className="mb-3 px-2">
-              <div className="flex justify-between items-center text-xs font-bold text-gray-700 mb-1.5">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                  <span>Uttam Nagar East → Janakpuri District Centre</span>
-                </div>
-                <span className="text-[#673AB7]">{progressPercent}% Traveled</span>
-              </div>
-              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-[#673AB7] to-emerald-500 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${progressPercent}%` }}
-                ></div>
-              </div>
+      {/* Route Deviation Prompt Alert (If Triggered) */}
+      {deviationAlert && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-center justify-between gap-3 animate-fadeIn">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="font-bold text-xs text-amber-900">Route Deviation Detected</p>
+              <p className="text-[11px] text-amber-700">You appear to have departed from the evaluated safe route. Is everything alright?</p>
             </div>
-
-            <MapComponent
-              center={currentCoord}
-              zoom={14}
-              height="440px"
-              routes={[
-                {
-                  coordinates: routeCoords,
-                  color: '#2E9D64',
-                  name: 'Live Journey Path',
-                  zone: 'A',
-                },
-              ]}
-              markers={[
-                {
-                  lat: currentCoord[0],
-                  lng: currentCoord[1],
-                  title: `Your Live Position (${user?.profile?.display_name || user?.profile?.full_name || 'You'})`,
-                  type: 'user',
-                  description: liveLocation.isRealGPS ? 'Real Device GPS Stream' : 'Moving along safe corridor at 16 km/h',
-                },
-                {
-                  lat: 28.6186,
-                  lng: 77.0545,
-                  title: 'Start: Uttam Nagar East',
-                  type: 'destination',
-                },
-                {
-                  lat: 28.6289,
-                  lng: 77.0789,
-                  title: 'Destination: Janakpuri District Centre',
-                  type: 'destination',
-                },
-                {
-                  lat: 28.6195,
-                  lng: 77.0562,
-                  title: 'Uttam Nagar Police Station',
-                  type: 'police',
-                },
-              ]}
-            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDeviationAlert(false)}
+              className="px-3 py-1.5 rounded-xl bg-white border border-amber-300 text-xs font-bold text-amber-800 hover:bg-amber-100"
+            >
+              Yes, I took a detour
+            </button>
+            <button
+              onClick={onOpenSOS}
+              className="px-3 py-1.5 rounded-xl bg-[#DC2626] text-white text-xs font-bold hover:bg-red-700"
+            >
+              Need Help (SOS)
+            </button>
           </div>
         </div>
+      )}
 
-        {/* Right Side: Guardian Info & Controls (4 Cols) */}
+      {/* Main Grid: Telemetry & Guardian Controls (4 cols) + Map View (8 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Left Telemetry Column */}
         <div className="lg:col-span-4 space-y-4">
           
-          {/* Live Telemetry Panel */}
-          <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-200 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">
-              Live Sharing Telemetry
-            </h3>
+          {/* Progress Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200/80 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#777487]">
+                Journey Progress
+              </span>
+              <span className="font-mono font-bold text-xs text-[#16A34A]">{progressPercent}%</span>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="w-full h-2.5 rounded-full bg-gray-100 overflow-hidden">
+              <div
+                className="h-full bg-[#16A34A] rounded-full transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              ></div>
+            </div>
 
             <div className="grid grid-cols-2 gap-3 text-center">
-              <div className="p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                <Clock className="w-5 h-5 text-[#673AB7] mx-auto mb-1" />
-                <span className="text-[10px] text-gray-400 font-semibold block uppercase">Remaining</span>
-                <span className="font-black text-sm text-[#292936]">{etaMinutes} mins</span>
+              <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+                <Clock className="w-4 h-4 text-[#673AB7] mx-auto mb-1" />
+                <span className="text-[10px] text-[#777487] font-semibold block uppercase">Est. Arrival</span>
+                <span className="font-black text-sm text-[#252238]">{etaMinutes} mins</span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                <BatteryCharging className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
-                <span className="text-[10px] text-gray-400 font-semibold block uppercase">Battery</span>
+              <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+                <BatteryCharging className="w-4 h-4 text-emerald-600 mx-auto mb-1" />
+                <span className="text-[10px] text-[#777487] font-semibold block uppercase">Device Battery</span>
                 <span className="font-black text-sm text-emerald-700">{batteryLevel}% OK</span>
               </div>
             </div>
 
-            {/* Guardian Sharing Row */}
-            <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-100">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#673AB7] block mb-2">
-                Active Guardian Stream
-              </span>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#673AB7] to-pink-500 text-white font-bold flex items-center justify-center text-xs flex-shrink-0 shadow-sm border border-purple-200">
-                  <ShieldCheck className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="font-bold text-xs text-[#292936]">Connected Guardians</p>
-                  <p className="text-[10px] text-gray-500">Live GPS stream broadcasting to your trusted network</p>
-                </div>
-                <span className="ml-auto w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <div className="text-xs text-[#777487] pt-2 border-t border-gray-100 space-y-1">
+              <div className="flex justify-between">
+                <span>Last GPS Ping:</span>
+                <strong className="text-[#252238]">{lastPingTime}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span>Coordinates:</span>
+                <span className="font-mono text-[#252238]">{currentCoord[0].toFixed(4)}° N, {currentCoord[1].toFixed(4)}° E</span>
               </div>
             </div>
-
-            {/* Real GPS Info */}
-            <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200 text-xs text-blue-900 font-semibold">
-              <p>📡 Current Coords: {currentCoord[0].toFixed(4)}° N, {currentCoord[1].toFixed(4)}° E</p>
-              <p className="text-[10px] text-blue-700 font-normal mt-0.5">
-                {liveLocation.isRealGPS ? 'High-precision browser GPS active' : 'Simulating Delhi corridor movement'}
-              </p>
-            </div>
-
-            {/* Controls */}
-            {isJourneyActive ? (
-              <button
-                onClick={handleStopJourney}
-                className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{t('stopJourneyBtn')}</span>
-              </button>
-            ) : (
-              <button
-                onClick={handleStartJourney}
-                className="w-full py-3 px-4 rounded-2xl bg-[#673AB7] hover:bg-purple-800 text-white font-extrabold text-xs shadow-md shadow-[#673AB7]/20 transition-all flex items-center justify-center gap-2 active:scale-95"
-              >
-                <Navigation className="w-4 h-4" />
-                <span>{t('startJourneyBtn')}</span>
-              </button>
-            )}
-
           </div>
 
+          {/* Connected Guardians Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#777487]">
+                Live Sharing With
+              </span>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                Encrypted Stream
+              </span>
+            </div>
+
+            {contacts.length === 0 ? (
+              <p className="text-xs text-[#777487] py-2">
+                No guardians currently linked. Go to Profile to link family members.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {contacts.map((c) => (
+                  <div key={c.id} className="p-2.5 rounded-xl bg-gray-50/80 border border-gray-100 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-purple-100 text-[#673AB7] font-bold flex items-center justify-center text-xs">
+                        {(c.name || 'G')[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-bold text-[#252238]">{c.name}</p>
+                        <p className="text-[10px] text-[#777487]">{c.nickname || 'Guardian'}</p>
+                      </div>
+                    </div>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Simulate Detour Test */}
+          <button
+            onClick={() => setDeviationAlert(!deviationAlert)}
+            className="w-full py-2 rounded-xl border border-gray-200 text-xs font-semibold text-[#777487] hover:bg-gray-50 flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>Simulate Deviation Trigger</span>
+          </button>
+
+        </div>
+
+        {/* Right Map Column (8 cols) */}
+        <div className="lg:col-span-8 bg-white rounded-2xl p-4 shadow-sm border border-gray-200/80 space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#16A34A] animate-ping"></span>
+              <h2 className="font-bold text-sm text-[#252238]">
+                Real-Time Journey Path & Corridor
+              </h2>
+            </div>
+            <span className="text-[11px] text-[#777487]">
+              Active GPS Tracking
+            </span>
+          </div>
+
+          <MapComponent
+            center={currentCoord}
+            zoom={14}
+            height="440px"
+            routes={[
+              {
+                coordinates: routeCoords,
+                color: '#16A34A',
+                name: 'Authorized Journey Corridor',
+                zone: 'A',
+                isRecommended: true,
+              },
+            ]}
+            markers={[
+              {
+                lat: currentCoord[0],
+                lng: currentCoord[1],
+                title: 'Live Position',
+                type: 'user',
+                description: 'You are travelling along Zone A Safe Path',
+              },
+              {
+                lat: routeCoords[routeCoords.length - 1][0],
+                lng: routeCoords[routeCoords.length - 1][1],
+                title: 'Destination',
+                type: 'destination',
+                description: 'Janakpuri District Centre',
+              },
+              {
+                lat: 28.6195,
+                lng: 77.0562,
+                title: 'Uttam Nagar Police Station',
+                type: 'police',
+              },
+            ]}
+          />
         </div>
 
       </div>

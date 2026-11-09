@@ -49,6 +49,16 @@ export interface SafetyParameters {
   cctvScore: number;
   policeScore: number;
   hospitalScore: number;
+  mobileNetworkScore?: number | null;
+}
+
+export interface PlaceSuggestion {
+  id: string;
+  mainText: string;
+  secondaryText: string;
+  fullAddress: string;
+  lat: number;
+  lng: number;
 }
 
 export interface RouteSegment {
@@ -64,14 +74,19 @@ export interface RouteOption {
   via: string;
   isRecommended: boolean;
   safetyScore: number;
+  dataConfidence?: number;
   zone: SafetyZone;
   zoneColor: string;
   zoneLabel: string;
   distanceKm: number;
   durationMinutes: number;
   confidencePercent: number;
+  costScore?: number;
   reason: string;
+  tradeoffExplanation?: string;
   parameters: SafetyParameters;
+  breakdown?: Record<string, any>;
+  unknownFactors?: string[];
   segments: RouteSegment[];
   coordinates: [number, number][];
 }

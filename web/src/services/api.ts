@@ -4,7 +4,7 @@
 // ============================================================
 
 import axios from 'axios';
-import { RouteOption, NearbyFacility, CommunityReport, CommunityPost, SafetyHistoryItem, User } from '../types';
+import { RouteOption, NearbyFacility, CommunityReport, CommunityPost, SafetyHistoryItem, User, PlaceSuggestion } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -20,6 +20,87 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Places Autocomplete
+export async function fetchPlaceSuggestions(query: string): Promise<PlaceSuggestion[]> {
+  try {
+    const res = await apiClient.get('/routes/autocomplete', { params: { query } });
+    if (res.data?.success && Array.isArray(res.data.data)) {
+      return res.data.data;
+    }
+  } catch (err) {
+    console.warn('Backend autocomplete endpoint unreachable, falling back to local search.');
+  }
+
+  // Local fallback place search
+  const queryLower = query.toLowerCase();
+  const fallbackPlaces: PlaceSuggestion[] = [
+    {
+      id: 'local-1',
+      mainText: 'Uttam Nagar East Metro Station',
+      secondaryText: 'Najafgarh Road, Uttam Nagar, New Delhi',
+      fullAddress: 'Uttam Nagar East Metro Station, Najafgarh Road, New Delhi',
+      lat: 28.6186,
+      lng: 77.0545,
+    },
+    {
+      id: 'local-2',
+      mainText: 'Janakpuri District Centre',
+      secondaryText: 'Janakpuri West, New Delhi',
+      fullAddress: 'Janakpuri District Centre, New Delhi',
+      lat: 28.6289,
+      lng: 77.0789,
+    },
+    {
+      id: 'local-3',
+      mainText: 'Janakpuri West Metro Station',
+      secondaryText: 'Interchange Station, Outer Ring Road, New Delhi',
+      fullAddress: 'Janakpuri West Metro Station, Outer Ring Road, New Delhi',
+      lat: 28.6294,
+      lng: 77.0772,
+    },
+    {
+      id: 'local-4',
+      mainText: 'Tilak Nagar Market',
+      secondaryText: 'Subhash Nagar, New Delhi',
+      fullAddress: 'Tilak Nagar Market, New Delhi',
+      lat: 28.6366,
+      lng: 77.0961,
+    },
+    {
+      id: 'local-5',
+      mainText: 'Mata Chanan Devi Hospital',
+      secondaryText: 'C-1 Block, Janakpuri, New Delhi',
+      fullAddress: 'Mata Chanan Devi Hospital, Janakpuri, New Delhi',
+      lat: 28.6255,
+      lng: 77.0845,
+    },
+  ];
+
+  return fallbackPlaces.filter(
+    (p) => p.mainText.toLowerCase().includes(queryLower) || p.secondaryText.toLowerCase().includes(queryLower)
+  );
+}
+
+// Reverse Geocode
+export async function reverseGeocodeCoordinates(
+  lat: number,
+  lng: number
+): Promise<{ formattedAddress: string; fullAddress: string }> {
+  try {
+    const res = await apiClient.get('/routes/reverse-geocode', { params: { lat, lng } });
+    if (res.data?.success && res.data?.data) {
+      return res.data.data;
+    }
+  } catch (err) {
+    console.warn('Reverse geocode failed, returning coordinates.');
+  }
+
+  return {
+    formattedAddress: `${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E`,
+    fullAddress: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+  };
+}
 
 // Helper for local mock responses if backend is temporarily disconnected
 export async function fetchSafeRoutes(origin: any, destination: any): Promise<RouteOption[]> {
